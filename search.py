@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from pinecone import Pinecone
 
-from config import PINECONE_API_KEY, PINECONE_INDEX, TOP_K
+from config import PINECONE_API_KEY, PINECONE_INDEX, RETRIEVAL_K
 
 
 class FashionSearch:
@@ -16,14 +16,10 @@ class FashionSearch:
         pc          = Pinecone(api_key=PINECONE_API_KEY)
         self.index  = pc.Index(PINECONE_INDEX)
 
-    def query(self, embedding: np.ndarray, top_k: int = TOP_K) -> list[dict]:
-        """
-        Returns a list of dicts with keys:
-          id, score, image_url, title, price, brand
-        """
+    def query(self, embedding: np.ndarray) -> list[dict]:
         response = self.index.query(
             vector=embedding.tolist(),
-            top_k=top_k,
+            top_k=RETRIEVAL_K,          # over-fetch
             include_metadata=True,
         )
 
@@ -32,10 +28,11 @@ class FashionSearch:
             meta = match.metadata or {}
             results.append({
                 "id":        match.id,
-                "score":     round(float(match.score), 4),
+                "score":     round(float(match.score), 4),   # ANN cosine similarity
                 "image_url": meta.get("image_url", ""),
                 "title":     meta.get("title", "Unknown"),
                 "price":     meta.get("price", "—"),
                 "brand":     meta.get("brand", "—"),
+                "caption":   meta.get("caption", ""),         # ← needed by reranker
             })
         return results

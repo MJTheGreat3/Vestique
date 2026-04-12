@@ -5,7 +5,9 @@ from PIL import Image
 from streamlit_cropper import st_cropper
 
 from detector import ClothingDetector
-from embedder import FashionEmbedder
+from embedder import QueryEncoder          # renamed
+from reranker import Reranker
+from config import FINAL_TOP_K
 from search import FashionSearch
 from utils import pil_to_rgb, resize_for_display
 
@@ -180,9 +182,13 @@ st.markdown(RUSTIC_CSS, unsafe_allow_html=True)
 def load_detector() -> ClothingDetector:
     return ClothingDetector()
 
-@st.cache_resource(show_spinner="Loading CLIP & BLIP apprentices…")
-def load_embedder() -> FashionEmbedder:
-    return FashionEmbedder()
+@st.cache_resource(show_spinner="Loading CLIP encoder…")
+def load_encoder() -> QueryEncoder:
+    return QueryEncoder()
+
+@st.cache_resource(show_spinner="Loading BLIP-2 re-ranker…")
+def load_reranker() -> Reranker:
+    return Reranker()
 
 @st.cache_resource(show_spinner="Opening the Pinecone catalogue…")
 def load_search() -> FashionSearch:
@@ -328,19 +334,25 @@ elif st.session_state.stage == "manual":
 # ═════════════════════════════════════════════════════════════════════════════
 
 elif st.session_state.stage == "searching":
-    with st.spinner("Consulting the CLIP & BLIP oracle…"):
-        embedder = load_embedder()
-        embedding, caption = embedder.embed(st.session_state.final_crop)
-        st.session_state.caption = caption
+    # Step 2: CLIP query encoding
+    with st.spinner("Encoding your garment with CLIP…"):
+        encoder  = load_encoder()                              # was load_embedder()
+        embedding = encoder.encode(st.session_state.final_crop)
 
-    with st.spinner("Leafing through the Pinecone catalogue…"):
-        searcher = load_search()
-        results  = searcher.query(embedding)
+    # Step 3: ANN retrieval
+    with st.spinner("Searching the HNSW catalogue…"):
+        searcher   = load_search()
+        candidates = searcher.query(embedding)                 # returns RETRIEVAL_K results
+
+    # Step 4: BLIP-2 ITM re-ranking
+    with st.spinner(f"Re-ranking {len(candidates)} candidates with BLIP-2 ITM…"):
+        reranker = load_reranker()
+        results  = reranker.rerank(st.session_state.final_crop, candidates)[:FINAL_TOP_K]
         st.session_state.results = results
 
     st.session_state.stage = "results"
     st.rerun()
-
+    
 # ═════════════════════════════════════════════════════════════════════════════
 # STAGE 5 – Results
 # ═════════════════════════════════════════════════════════════════════════════
@@ -353,7 +365,7 @@ elif st.session_state.stage == "results":
         st.image(resize_for_display(st.session_state.final_crop, 300), use_container_width=True)
         if st.session_state.caption:
             st.markdown(
-                f"<div class='caption-box'>"{st.session_state.caption}"</div>",
+                f"<div class='caption-box'>&ldquo;{st.session_state.caption}&rdquo;</div>",
                 unsafe_allow_html=True,
             )
 
@@ -381,7 +393,7 @@ elif st.session_state.stage == "results":
                                 {img_html}
                                 <div class="item-title">{item['title']}</div>
                                 <div class="item-meta">{item['brand']} · {item['price']}</div>
-                                <span class="score-badge">sim {item['score']}</span>
+                                <span class="score-badge">cosine {item['score']} · itm {item['itm_score']:.3f}</span>
                             </div>
                             """,
                             unsafe_allow_html=True,
