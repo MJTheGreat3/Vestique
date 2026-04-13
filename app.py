@@ -25,6 +25,34 @@ RUSTIC_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
 
+/* ── Light mode palette ──────────────────────────────────────────────── */
+:root {
+    --parchment:   #F5E6C8;
+    --parchment2:  #EDD9A3;
+    --ink:         #2C1A0E;
+    --ink-light:   #5C3D1E;
+    --rust:        #8B3A0F;
+    --gold:        #C9923A;
+    --gold-light:  #E8B96A;
+    --sepia:       #9E7B4F;
+    --cream:       #FDF6E3;
+}
+
+/* ── Dark mode palette ───────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --parchment:   #2A1F14;
+        --parchment2:  #3A2A18;
+        --ink:         #F0DEB8;
+        --ink-light:   #D4B483;
+        --rust:        #E8935A;
+        --gold:        #D4A55A;
+        --gold-light:  #F0C878;
+        --sepia:       #C4976A;
+        --cream:       #1E1610;
+    }
+}
+
 /* ── Global palette ─────────────────────────────────────────────────── */
 :root {
     --parchment:   #F5E6C8;
