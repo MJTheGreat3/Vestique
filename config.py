@@ -9,7 +9,9 @@ PINECONE_API_KEY   = os.getenv("PINECONE_API_KEY", "")
 PINECONE_INDEX     = os.getenv("PINECONE_INDEX_NAME", "vestique-fashion")
 
 # ── Model paths ───────────────────────────────────────────────────────────────
-YOLO_MODEL_PATH    = os.getenv("YOLO_MODEL_PATH", "best.pt")
+YOLO_MODEL_PATH    = os.getenv("YOLO_MODEL_PATH", "models/yolov8n.pt")
+CLIP_MODEL_PATH    = os.getenv("CLIP_MODEL_PATH", "")
+CLIP_HF_REPO       = os.getenv("CLIP_HF_REPO", "")
 CLIP_MODEL_NAME    = "openai/clip-vit-base-patch32"
 BLIP_MODEL_NAME    = "Salesforce/blip-image-captioning-base"
 
