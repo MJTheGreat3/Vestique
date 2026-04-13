@@ -11,6 +11,8 @@ from config import FINAL_TOP_K
 from search import FashionSearch
 from utils import pil_to_rgb, resize_for_display
 
+ensure_clip_weights()
+
 # ── Page config (must be first Streamlit call) ────────────────────────────────
 st.set_page_config(
     page_title="Vestique – Visual Fashion Search",
