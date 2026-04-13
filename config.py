@@ -24,7 +24,6 @@ CROP_PAD_FRACTION   = 0.05        # add 5% padding around the detected bbox
 
 # ── Weight downloader ─────────────────────────────────────────────────────────
 def ensure_clip_weights() -> None:
-    """Download clip.pt from HuggingFace Hub if not already present locally."""
     if not Path(CLIP_MODEL_PATH).exists():
         from huggingface_hub import hf_hub_download
         print("Downloading clip.pt from HuggingFace Hub…")
