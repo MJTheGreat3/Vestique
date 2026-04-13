@@ -5,9 +5,9 @@ from PIL import Image
 from streamlit_cropper import st_cropper
 
 from detector import ClothingDetector
-from embedder import QueryEncoder          # renamed
+from embedder import QueryEncoder
 from reranker import Reranker
-from config import FINAL_TOP_K
+from config import FINAL_TOP_K, ensure_clip_weights
 from search import FashionSearch
 from utils import pil_to_rgb, resize_for_display
 
