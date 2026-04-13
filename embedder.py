@@ -25,4 +25,10 @@ class QueryEncoder:
         """Returns shape (512,), float32, L2-normalised."""
         inputs   = self.processor(images=image, return_tensors="pt").to(self.device)
         features = self.model.get_image_features(**inputs)
+
+        if hasattr(features, "pooler_output") and features.pooler_output is not None:
+            features = features.pooler_output
+        elif hasattr(features, "last_hidden_state"):
+            features = features.last_hidden_state[:, 0, :]
+
         return normalize_embedding(features.cpu().detach().numpy().flatten()).astype(np.float32)
