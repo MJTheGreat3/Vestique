@@ -21,6 +21,193 @@ st.set_page_config(
 )
 
 # ── Rustic / antique CSS ──────────────────────────────────────────────────────
+FASHION_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+/* ── Light mode ──────────────────────────────────────────────────────── */
+:root {
+    --ivory:       #F7F6F2;
+    --ivory2:      #EDECEA;
+    --ink:         #0C0C0C;
+    --ink-muted:   #4A4A4A;
+    --champagne:   #B8975A;
+    --champ-light: #D4B478;
+    --surface:     #FFFFFF;
+    --border:      #E0DFDB;
+}
+
+/* ── Dark mode ───────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ivory:       #111110;
+        --ivory2:      #1C1C1B;
+        --ink:         #F0EFE9;
+        --ink-muted:   #A8A8A0;
+        --champagne:   #C9A86C;
+        --champ-light: #E0C080;
+        --surface:     #171716;
+        --border:      #2E2E2C;
+    }
+}
+
+/* ── Global ──────────────────────────────────────────────────────────── */
+.stApp {
+    background-color: var(--ivory);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-weight: 300;
+    color: var(--ink);
+    letter-spacing: 0.01em;
+}
+
+/* ── Headings ─────────────────────────────────────────────────────────── */
+h1, h2, h3, h4 {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-weight: 300;
+    color: var(--ink);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+    background-color: var(--ink);
+    border-right: 1px solid #222;
+}
+[data-testid="stSidebar"] * {
+    color: var(--ivory) !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 300 !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    font-family: 'Cormorant Garamond', serif !important;
+    color: var(--champ-light) !important;
+    letter-spacing: 0.14em;
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────── */
+hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2rem 0;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.stButton > button {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 400 !important;
+    font-size: 0.78rem !important;
+    letter-spacing: 0.18em !important;
+    text-transform: uppercase !important;
+    background-color: var(--ink) !important;
+    color: var(--ivory) !important;
+    border: 1px solid var(--ink) !important;
+    border-radius: 0 !important;
+    padding: 0.6rem 1.8rem !important;
+    transition: background 0.2s, color 0.2s !important;
+}
+.stButton > button:hover {
+    background-color: var(--champagne) !important;
+    border-color: var(--champagne) !important;
+    color: var(--surface) !important;
+}
+
+/* ── File uploader ───────────────────────────────────────────────────── */
+[data-testid="stFileUploader"] {
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    background: var(--surface) !important;
+}
+
+/* ── Alert / info boxes ──────────────────────────────────────────────── */
+[data-testid="stAlert"] {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    border-radius: 0 !important;
+    border-left: 3px solid var(--champagne) !important;
+    background: var(--surface) !important;
+    color: var(--ink-muted) !important;
+}
+
+/* ── Images ──────────────────────────────────────────────────────────── */
+[data-testid="stImage"] img {
+    border: 1px solid var(--border);
+    border-radius: 0;
+}
+
+/* ── Result cards ────────────────────────────────────────────────────── */
+.result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0;
+    padding: 0;
+    overflow: hidden;
+    text-align: left;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--ink);
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+}
+.result-card:hover {
+    border-color: var(--champagne);
+}
+.result-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
+}
+.result-card .card-body {
+    padding: 10px 12px 12px;
+}
+.result-card .item-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    margin-bottom: 3px;
+}
+.result-card .item-meta {
+    font-size: 0.75rem;
+    font-weight: 300;
+    color: var(--ink-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.result-card .score-badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--champagne);
+    margin-top: 6px;
+}
+
+/* ── Caption box ─────────────────────────────────────────────────────── */
+.caption-box {
+    background: var(--surface);
+    border-left: 3px solid var(--champagne);
+    padding: 12px 16px;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    font-weight: 300;
+    color: var(--ink-muted);
+    letter-spacing: 0.02em;
+    margin: 10px 0;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────── */
+.stSpinner > div {
+    border-top-color: var(--champagne) !important;
+}
+</style>
+"""
+
 RUSTIC_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
@@ -204,7 +391,7 @@ hr {
 </style>
 """
 
-st.markdown(RUSTIC_CSS, unsafe_allow_html=True)
+st.markdown(FASHION_CSS, unsafe_allow_html=True)
 
 # ── Cached model loaders (only instantiated once per session) ─────────────────
 
@@ -244,17 +431,17 @@ _init_state()
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("# 🪡 Vestique")
+    st.markdown("# Vestique")
     st.markdown(
-        "*Search the world's garments by image — an antiquary's eye for modern fashion.*"
+        "*Search by image. Find the garment.*"
     )
     st.markdown("---")
     st.markdown("### How it works")
     st.markdown(
-        "1. **Upload** a photo containing clothing\n"
-        "2. **Confirm** the auto-detected garment crop\n"
-        "3. **Search** our catalogue with AI vision\n"
-        "4. **Browse** the top 10 visual matches"
+        "01 &nbsp; Upload a photograph\n\n"
+        "02 &nbsp; Confirm the detected garment\n\n"
+        "03 &nbsp; We search the catalogue\n\n"
+        "04 &nbsp; Browse your matches"
     )
     st.markdown("---")
     if st.button("↺  Start over"):
@@ -265,9 +452,11 @@ with st.sidebar:
 # ── Header ────────────────────────────────────────────────────────────────────
 
 st.markdown(
-    "<h1 style='text-align:center;letter-spacing:0.08em;'>✦ VESTIQUE ✦</h1>"
-    "<p style='text-align:center;font-style:italic;color:#9E7B4F;margin-top:-8px;'>"
-    "A visual search engine for the discerning clothier</p>",
+    "<h1 style='text-align:center;font-size:2.8rem;font-weight:300;letter-spacing:0.22em;'>"
+    "VESTIQUE</h1>"
+    "<p style='text-align:center;font-family:DM Sans,sans-serif;font-size:0.78rem;"
+    "letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-muted);margin-top:-12px;'>"
+    "Visual Fashion Search</p>",
     unsafe_allow_html=True,
 )
 st.markdown("<hr/>", unsafe_allow_html=True)
