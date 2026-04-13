@@ -582,11 +582,6 @@ elif st.session_state.stage == "results":
     with col_query:
         st.markdown("### Your search")
         st.image(resize_for_display(st.session_state.final_crop, 300), use_container_width=True)
-        if st.session_state.caption:
-            st.markdown(
-                f"<div class='caption-box'>&ldquo;{st.session_state.caption}&rdquo;</div>",
-                unsafe_allow_html=True,
-            )
 
     with col_res:
         st.markdown("### Top 10 matches")
@@ -595,24 +590,24 @@ elif st.session_state.stage == "results":
         if not results:
             st.warning("No matches found in the catalogue.")
         else:
-            # 5 columns × 2 rows
-            for row_start in range(0, 10, 5):
+            for row_start in range(0, min(10, len(results)), 5):
                 row_results = results[row_start : row_start + 5]
                 cols = st.columns(5)
                 for col, item in zip(cols, row_results):
                     with col:
-                        img_html = (
-                            f"<img src='{item['image_url']}' alt='{item['title']}'/>"
-                            if item["image_url"]
-                            else "<div style='width:100%;height:180px;background:#EDD9A3;'></div>"
-                        )
                         st.markdown(
                             f"""
                             <div class="result-card">
-                                {img_html}
-                                <div class="item-title">{item['title']}</div>
-                                <div class="item-meta">{item['brand']} · {item['price']}</div>
-                                <span class="score-badge">cosine {item['score']} · itm {item['itm_score']:.3f}</span>
+                                <div class="card-body">
+                                    <div class="item-title">{item['id']}</div>
+                                    <div class="item-meta" style="font-style:italic;text-transform:none;margin-top:4px;">
+                                        {item.get('caption', '')}
+                                    </div>
+                                    <div class="score-badge">
+                                        cosine {item['score']}
+                                        · itm {item.get('itm_score', 0):.3f}
+                                    </div>
+                                </div>
                             </div>
                             """,
                             unsafe_allow_html=True,
