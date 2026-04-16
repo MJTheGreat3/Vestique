@@ -595,11 +595,19 @@ elif st.session_state.stage == "results":
                 cols = st.columns(5)
                 for col, item in zip(cols, row_results):
                     with col:
+                        img_html = (
+                            f'<img src="{item["image_url"]}" alt="product"/>'
+                            if item.get("image_url")
+                            else '<div style="height:200px;background:var(--ivory2);display:flex;'
+                                 'align-items:center;justify-content:center;font-size:0.7rem;'
+                                 'color:var(--ink-muted);">No image</div>'
+                        )
                         st.markdown(
                             f"""
                             <div class="result-card">
+                                {img_html}
                                 <div class="card-body">
-                                    <div class="item-title">{item['id']}</div>
+                                    <div class="item-title">{item.get('product_id', item['id'])}</div>
                                     <div class="item-meta" style="font-style:italic;text-transform:none;margin-top:4px;">
                                         {item.get('caption', '')}
                                     </div>
