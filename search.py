@@ -1,3 +1,4 @@
+# search.py
 from __future__ import annotations
 import numpy as np
 from pinecone import Pinecone
@@ -21,9 +22,10 @@ class FashionSearch:
         for match in response.matches:
             meta = match.metadata or {}
             results.append({
-                "id":      match.id,
-                "score":   round(float(match.score), 4),
-                "caption": meta.get("caption", ""),
-                # no image_url, title, price, brand in your index
+                "id":         match.id,
+                "score":      round(float(match.score), 4),
+                "product_id": meta.get("product_id", ""),
+                "caption":    meta.get("caption", ""),
+                "image_url":  meta.get("image_url", ""),
             })
         return results
