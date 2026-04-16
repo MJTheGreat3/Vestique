@@ -16,7 +16,7 @@ CLIP_MODEL_NAME    = "openai/clip-vit-base-patch32"
 BLIP_MODEL_NAME    = "Salesforce/blip-image-captioning-base"
 
 # ── Search ────────────────────────────────────────────────────────────────────
-RETRIEVAL_K        = 20           # how many ANN candidates to fetch
+RETRIEVAL_K        = 10           # how many ANN candidates to fetch
 FINAL_TOP_K        = 10           # how many to show after re-ranking
 EMBEDDING_DIM      = 512          # CLIP ViT-B/32 output dim
 BLIP_MAX_TOKENS    = 50
