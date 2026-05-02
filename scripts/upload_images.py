@@ -56,7 +56,7 @@ for j, id_name in enumerate(ids):
         img_path,
         folder="visual-search",
         public_id=f"{id_name}_{idx}",
-        overwrite=True
+        overwrite=False
     )
 
     image_urls[str(j)] = res["secure_url"]
