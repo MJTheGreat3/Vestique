@@ -17,7 +17,17 @@ class QueryEncoder:
     def __init__(self) -> None:
         device_str       = "cuda" if torch.cuda.is_available() else "cpu"
         self.device      = torch.device(device_str)
-        self.model       = CLIPModel.from_pretrained(CLIP_MODEL_NAME).to(self.device).eval()
+        self.model = CLIPModel.from_pretrained(CLIP_MODEL_NAME)
+
+        ckpt = torch.load(
+            "models/best_clip.pt",
+            map_location=self.device
+        )
+        if "model_state_dict" in ckpt:
+            self.model.load_state_dict(ckpt["model_state_dict"])
+        else:
+            self.model.load_state_dict(ckpt)
+        self.model = self.model.to(self.device).eval()
         self.processor   = CLIPProcessor.from_pretrained(CLIP_MODEL_NAME)
 
     @torch.no_grad()

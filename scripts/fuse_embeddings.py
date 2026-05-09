@@ -1,32 +1,58 @@
-import numpy as np
+import os
 import json
+import numpy as np
 
-# Load image embeddings
-img = np.load("embeddings/gallery_embs_crop.npy")
 
-# Load text embeddings
-txt = np.load("blip_captions/gallery_embs_crop.npy")
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
 
-# Load IDs
-with open("embeddings/gallery_ids.json") as f:
+EMB_DIR = os.path.join(
+    BASE_DIR,
+    "embeddings"
+)
+
+img = np.load(
+    os.path.join(
+        EMB_DIR,
+        "gallery_embs_crop.npy"
+    )
+)
+
+txt = np.load(
+    os.path.join(
+        EMB_DIR,
+        "gallery_text_embs.npy"
+    )
+)
+
+
+with open(
+    os.path.join(
+        EMB_DIR,
+        "gallery_ids.json"
+    )
+) as f:
     ids = json.load(f)
 
-# Check
 print("Image:", img.shape)
 print("Text :", txt.shape)
 print("IDs  :", len(ids))
-
 assert img.shape == txt.shape
 assert len(ids) == img.shape[0]
 
-# Fusion
 alpha = 0.7
 fused = alpha * img + (1 - alpha) * txt
 
-# Normalize
-fused = fused / np.linalg.norm(fused, axis=1, keepdims=True)
 
-# Save
-np.save("embeddings/gallery_fused.npy", fused)
-
-print(" Saved gallery_fused.npy")
+fused = fused / np.linalg.norm(
+    fused,
+    axis=1,
+    keepdims=True
+)
+save_path = os.path.join(
+    EMB_DIR,
+    "gallery_fused.npy"
+)
+np.save(save_path, fused)
+print(f"Saved: {save_path}")
