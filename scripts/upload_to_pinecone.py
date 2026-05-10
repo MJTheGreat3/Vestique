@@ -53,8 +53,18 @@ index = pc.Index(index_name)
 
 
 # DELETE OLD VECTORS
+# DELETE OLD VECTORS
 print("Clearing old vectors...")
-index.delete(delete_all=True)
+
+try:
+    stats = index.describe_index_stats()
+    print(stats)
+
+    index.delete(delete_all=True, namespace="")
+    print("Old vectors deleted.")
+
+except Exception as e:
+    print("Skipping delete:", e)
 
 # UPLOAD
 batch_size = 100
