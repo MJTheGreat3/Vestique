@@ -3,7 +3,12 @@ import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 
-from config import YOLO_MODEL_PATH, YOLO_CONF_THRESHOLD, CROP_PAD_FRACTION
+from config import (
+    YOLO_MODEL_PATH,
+    YOLO_CONF_THRESHOLD,
+    CROP_PAD_FRACTION,
+    ensure_yolo_weights,
+)
 from utils import pad_crop, pil_to_rgb
 
 
@@ -14,6 +19,7 @@ class ClothingDetector:
     """
 
     def __init__(self) -> None:
+        ensure_yolo_weights()
         self._model = YOLO(YOLO_MODEL_PATH)
 
     def detect(self, image: Image.Image) -> tuple[Image.Image | None, tuple | None, float | None]:
