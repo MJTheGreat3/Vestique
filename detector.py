@@ -18,7 +18,7 @@ class ClothingDetector:
     """
 
     def __init__(self) -> None:
-        ensure_yolo_weights()
+        # ensure_yolo_weights()
         print("Loading YOLO from:", YOLO_MODEL_PATH)
         self._model = YOLO(YOLO_MODEL_PATH)
 

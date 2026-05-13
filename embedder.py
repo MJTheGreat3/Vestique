@@ -19,18 +19,18 @@ class QueryEncoder:
         self.device      = torch.device(device_str)
         self.model = CLIPModel.from_pretrained(CLIP_MODEL_NAME)
 
-        ckpt = torch.load(
-            "models/best_clip.pt",
-            map_location=self.device
-        )
-        state_dict = ckpt["model_state_dict"] if "model_state_dict" in ckpt else ckpt
-        try:
-            self.model.load_state_dict(state_dict)
-        except RuntimeError:
-            print(
-                "Skipping local CLIP checkpoint because it is not compatible "
-                "with transformers CLIPModel. Using base CLIP weights."
-            )
+        # ckpt = torch.load(
+        #     "models/best_clip.pt",
+        #     map_location=self.device
+        # )
+        # state_dict = ckpt["model_state_dict"] if "model_state_dict" in ckpt else ckpt
+        # try:
+        #     self.model.load_state_dict(state_dict)
+        # except RuntimeError:
+        #     print(
+        #         "Skipping local CLIP checkpoint because it is not compatible "
+        #         "with transformers CLIPModel. Using base CLIP weights."
+        #     )
         self.model = self.model.to(self.device).eval()
         self.processor   = CLIPProcessor.from_pretrained(CLIP_MODEL_NAME)
 
