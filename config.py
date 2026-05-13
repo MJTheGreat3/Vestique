@@ -39,7 +39,7 @@ def ensure_yolo_weights() -> None:
         hf_hub_download(
             repo_id=YOLO_HF_REPO,
             filename="yolo11s.pt",
-            local_dir="models",
+            local_dir=".",
             local_dir_use_symlinks=False,
         )
 
