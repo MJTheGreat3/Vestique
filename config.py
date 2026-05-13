@@ -9,7 +9,7 @@ PINECONE_API_KEY   = os.getenv("PINECONE_API_KEY", "")
 PINECONE_INDEX     = os.getenv("PINECONE_INDEX_NAME", "vestique-fashion")
 
 # ── Model paths ───────────────────────────────────────────────────────────────
-YOLO_MODEL_PATH    = os.getenv("YOLO_MODEL_PATH", "models/yolov11s.pt")
+YOLO_MODEL_PATH    = os.getenv("YOLO_MODEL_PATH", "models/yolo11s.pt")
 YOLO_HF_REPO       = os.getenv("YOLO_HF_REPO", "")
 
 CLIP_MODEL_PATH    = os.getenv("CLIP_MODEL_PATH", "")
