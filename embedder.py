@@ -23,10 +23,14 @@ class QueryEncoder:
             "models/best_clip.pt",
             map_location=self.device
         )
-        if "model_state_dict" in ckpt:
-            self.model.load_state_dict(ckpt["model_state_dict"])
-        else:
-            self.model.load_state_dict(ckpt)
+        state_dict = ckpt["model_state_dict"] if "model_state_dict" in ckpt else ckpt
+        try:
+            self.model.load_state_dict(state_dict)
+        except RuntimeError:
+            print(
+                "Skipping local CLIP checkpoint because it is not compatible "
+                "with transformers CLIPModel. Using base CLIP weights."
+            )
         self.model = self.model.to(self.device).eval()
         self.processor   = CLIPProcessor.from_pretrained(CLIP_MODEL_NAME)
 

@@ -415,8 +415,9 @@ def load_search() -> FashionSearch:
 
 def _init_state() -> None:
     defaults = {
-        "stage":          "upload",   # upload | confirm | manual | results
+        "stage":          "upload",   # upload | choose | confirm | manual | searching | results
         "original_image": None,
+        "region":         "full",
         "auto_crop":      None,
         "final_crop":     None,
         "caption":        None,
@@ -477,29 +478,50 @@ if st.session_state.stage == "upload":
         if uploaded:
             image = pil_to_rgb(Image.open(uploaded))
             st.session_state.original_image = image
-
-            with st.spinner("Inspecting your garment…"):
-                detector = load_detector()
-                crop, box, conf = detector.detect(image)
-
-            if crop is not None:
-                st.session_state.auto_crop = crop
-                st.session_state.stage     = "confirm"
-                st.rerun()
-            else:
-                st.warning(
-                    "No clothing article detected automatically. "
-                    "You may crop manually."
-                )
-                st.session_state.stage = "manual"
-                st.rerun()
+            st.session_state.stage = "choose"
+            st.rerun()
 
 # ═════════════════════════════════════════════════════════════════════════════
-# STAGE 2 – Confirm auto crop
+# STAGE 2 – Choose body region
+# ═════════════════════════════════════════════════════════════════════════════
+
+elif st.session_state.stage == "choose":
+    col_l, col_c, col_r = st.columns([1, 2, 1])
+    with col_c:
+        st.image(
+            resize_for_display(st.session_state.original_image, 400),
+            use_container_width=True,
+        )
+        st.markdown("### What are you looking for?")
+        col1, col2, col3 = st.columns(3)
+        for col, label, region in zip(
+            [col1, col2, col3],
+            ["Upper Body", "Lower Body", "Full Body"],
+            ["upper",      "lower",      "full"],
+        ):
+            with col:
+                if st.button(label, use_container_width=True):
+                    st.session_state.region = region
+                    with st.spinner("Detecting garment…"):
+                        detector = load_detector()
+                        crop, box, conf = detector.detect_region(
+                            st.session_state.original_image, region
+                        )
+                    st.session_state.auto_crop = crop
+                    st.session_state.stage = "confirm"
+                    st.rerun()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STAGE 3 – Confirm auto crop
 # ═════════════════════════════════════════════════════════════════════════════
 
 elif st.session_state.stage == "confirm":
-    st.markdown("### Is this the garment you wish to search?")
+    region_label = {
+        "upper": "Upper Body",
+        "lower": "Lower Body",
+        "full":  "Full Body",
+    }.get(st.session_state.region, "")
+    st.markdown(f"### Is this the {region_label} garment you wish to search?")
     col_orig, col_crop = st.columns(2)
 
     with col_orig:
@@ -511,7 +533,7 @@ elif st.session_state.stage == "confirm":
         st.image(resize_for_display(st.session_state.auto_crop), use_container_width=True)
 
     st.markdown("<br/>", unsafe_allow_html=True)
-    col_yes, col_no, _ = st.columns([1, 1, 3])
+    col_yes, col_no, col_back, _ = st.columns([1, 1, 1, 2])
 
     with col_yes:
         if st.button("✓  Yes, search this", use_container_width=True):
@@ -524,8 +546,13 @@ elif st.session_state.stage == "confirm":
             st.session_state.stage = "manual"
             st.rerun()
 
+    with col_back:
+        if st.button("← Change region", use_container_width=True):
+            st.session_state.stage = "choose"
+            st.rerun()
+
 # ═════════════════════════════════════════════════════════════════════════════
-# STAGE 3 – Manual crop
+# STAGE 4 – Manual crop
 # ═════════════════════════════════════════════════════════════════════════════
 
 elif st.session_state.stage == "manual":
@@ -549,7 +576,7 @@ elif st.session_state.stage == "manual":
             st.rerun()
 
 # ═════════════════════════════════════════════════════════════════════════════
-# STAGE 4 – Embedding + search
+# STAGE 5 – Embedding + search
 # ═════════════════════════════════════════════════════════════════════════════
 
 elif st.session_state.stage == "searching":
@@ -573,7 +600,7 @@ elif st.session_state.stage == "searching":
     st.rerun()
     
 # ═════════════════════════════════════════════════════════════════════════════
-# STAGE 5 – Results
+# STAGE 6 – Results
 # ═════════════════════════════════════════════════════════════════════════════
 
 elif st.session_state.stage == "results":
