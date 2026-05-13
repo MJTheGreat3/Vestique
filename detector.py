@@ -13,12 +13,13 @@ from utils import pil_to_rgb
 
 class ClothingDetector:
     """
-    Wraps a YOLOv8 model trained on clothing/fashion data.
+    Wraps a YOLOv11 model trained on clothing/fashion data.
     Call `detect_region(image, region)` to get a clothing crop for a body region.
     """
 
     def __init__(self) -> None:
         ensure_yolo_weights()
+        print("Loading YOLO from:", YOLO_MODEL_PATH)
         self._model = YOLO(YOLO_MODEL_PATH)
 
     def detect(self, image: Image.Image) -> tuple[Image.Image | None, tuple | None, float | None]:
