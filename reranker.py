@@ -20,10 +20,17 @@ class Reranker:
     """
 
     def __init__(self) -> None:
-
-        device_str = "cuda" if torch.cuda.is_available() else "cpu"
+        if torch.cuda.is_available():
+            device_str = "cuda"
+        elif torch.backends.mps.is_available():
+            device_str = "mps"
+        else:
+            device_str = "cpu"
 
         self.device = torch.device(device_str)
+        use_fp16 = self.device.type in ("cuda", "mps")
+
+        print(f"Loading BLIP-2 on {self.device} (fp16={use_fp16})")
 
         self.processor = Blip2Processor.from_pretrained(
             ITM_MODEL
@@ -33,9 +40,7 @@ class Reranker:
             Blip2ForConditionalGeneration
             .from_pretrained(
                 ITM_MODEL,
-                torch_dtype=torch.float16
-                if torch.cuda.is_available()
-                else torch.float32
+                torch_dtype=torch.float16 if use_fp16 else torch.float32,
             )
             .to(self.device)
             .eval()

@@ -630,21 +630,16 @@ elif st.session_state.stage == "results":
                                  'color:var(--ink-muted);">No image</div>'
                         )
                         st.markdown(
-                            f"""
-                            <div class="result-card">
-                                {img_html}
-                                <div class="card-body">
-                                    <div class="item-title">{item.get('product_id', item['id'])}</div>
-                                    <div class="item-meta" style="font-style:italic;text-transform:none;margin-top:4px;">
-                                        {item.get('caption', '')}
-                                    </div>
-                                    <div class="score-badge">
-                                        cosine {item['score']}
-                                        · itm {item.get('itm_score', 0):.3f}
-                                    </div>
-                                </div>
-                            </div>
-                            """,
+                            f'<div class="result-card">'
+                            f'{img_html}'
+                            '<div class="card-body">'
+                            f'<div class="item-title">{item.get("product_id", item["id"])}</div>'
+                            '<div class="item-meta" style="font-style:italic;text-transform:none;margin-top:4px;">'
+                            f'{item.get("caption", "")}'
+                            '</div>'
+                            f'<div class="score-badge">cosine {item["score"]} · itm {item.get("itm_score", 0):.3f}</div>'
+                            '</div>'
+                            '</div>',
                             unsafe_allow_html=True,
                         )
 
