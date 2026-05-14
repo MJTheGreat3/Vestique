@@ -1,11 +1,14 @@
 from __future__ import annotations
+import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 
 from config import (
     YOLO_MODEL_PATH,
+    YOLO_POSE_MODEL,
     YOLO_CONF_THRESHOLD,
     CROP_PAD_FRACTION,
+    HIP_CONF_THRESHOLD,
     ensure_yolo_weights,
 )
 from utils import pil_to_rgb
@@ -13,65 +16,104 @@ from utils import pil_to_rgb
 
 class ClothingDetector:
     """
-    Wraps a YOLOv11 model trained on clothing/fashion data.
-    Call `detect_region(image, region)` to get a clothing crop for a body region.
+    Combines YOLO person detection + YOLO-pose keypoints for
+    anatomically accurate upper / lower / full body cropping.
     """
 
     def __init__(self) -> None:
-        # ensure_yolo_weights()
-        print("Loading YOLO from:", YOLO_MODEL_PATH)
+        print("Loading YOLO detector from:", YOLO_MODEL_PATH)
         self._model = YOLO(YOLO_MODEL_PATH)
+        print("Loading YOLO pose from:", YOLO_POSE_MODEL)
+        self._pose = YOLO(YOLO_POSE_MODEL)
 
-    def detect(self, image: Image.Image) -> tuple[Image.Image | None, tuple | None, float | None]:
-        return self.detect_region(image, "full")
+    @staticmethod
+    def _get_hip_y(pose_result) -> int | None:
+        """Return mean y of visible hips (keypoints 11, 12), or None."""
+        kps = pose_result.keypoints
+        if kps is None:
+            return None
+        xy = kps.xy[0].cpu().numpy()   # (17, 2)
+        conf = kps.conf[0].cpu().numpy() if kps.conf is not None else np.ones(17)
+        hip_ys = []
+        for idx in (11, 12):
+            if conf[idx] >= HIP_CONF_THRESHOLD:
+                hip_ys.append(int(xy[idx, 1]))
+        if len(hip_ys) < 2:
+            return None
+        return int(np.mean(hip_ys))
 
     def detect_region(
         self,
         image: Image.Image,
-        region: str,  # "upper" | "lower" | "full"
+        region: str,
     ) -> tuple[Image.Image | None, tuple | None, float | None]:
         """
-        Return highest-confidence detection within the requested body region.
-        Falls back to a heuristic image slice if no detection found.
+        1. Find highest-confidence person (class 0) via YOLO.
+        2. Get hip y via YOLO-pose.
+        3. Derive region box:
+            upper  – person top → hip y
+            lower  – hip y → person bottom
+            full   – person box as-is
+        4. Pad, crop, return.
         """
         img_rgb = pil_to_rgb(image)
         w, h = img_rgb.size
-        region_box: tuple[int, int, int, int] = {
-            "upper": (0, 0, w, int(h * 0.55)),
-            "lower": (0, int(h * 0.45), w, h),
-            "full":  (0, 0, w, h),
-        }[region]
-        results = self._model(img_rgb, conf=YOLO_CONF_THRESHOLD, verbose=False)
 
-        best_box: tuple | None = None
+        # ── Step 1: person detection ────────────────────────────────────
+        dets = self._model(img_rgb, conf=YOLO_CONF_THRESHOLD, verbose=False)
+
+        person_box: tuple[int, int, int, int] | None = None
         best_conf = -1.0
-        rx1, ry1, rx2, ry2 = region_box
 
-        for result in results:
+        for result in dets:
             for box in result.boxes:
-                x1, y1, x2, y2 = (int(v) for v in box.xyxy[0].tolist())
-                ix1 = max(x1, rx1)
-                iy1 = max(y1, ry1)
-                ix2 = min(x2, rx2)
-                iy2 = min(y2, ry2)
-                if ix1 >= ix2 or iy1 >= iy2:
+                cls_id = int(box.cls[0])
+                if cls_id != 0:
                     continue
-
                 conf = float(box.conf[0])
-                if conf > best_conf:
-                    best_conf = conf
-                    best_box = (ix1, iy1, ix2, iy2)
+                if conf <= best_conf:
+                    continue
+                best_conf = conf
+                x1, y1, x2, y2 = (int(v) for v in box.xyxy[0].tolist())
+                person_box = (x1, y1, x2, y2)
 
-        if best_box is not None:
-            x1, y1, x2, y2 = best_box
-            pad_x = int((x2 - x1) * CROP_PAD_FRACTION)
-            pad_y = int((y2 - y1) * CROP_PAD_FRACTION)
-            padded_box = (
-                max(rx1, x1 - pad_x),
-                max(ry1, y1 - pad_y),
-                min(rx2, x2 + pad_x),
-                min(ry2, y2 + pad_y),
-            )
-            return img_rgb.crop(padded_box), padded_box, best_conf
+        # ── No person found → full-image fallback ───────────────────────
+        if person_box is None:
+            fallback = (0, 0, w, h)
+            return img_rgb.crop(fallback), fallback, None
 
-        return img_rgb.crop(region_box), region_box, None
+        px1, py1, px2, py2 = person_box
+
+        # ── Step 2: pose → hip y ────────────────────────────────────────
+        poses = self._pose(img_rgb, conf=YOLO_CONF_THRESHOLD, verbose=False)
+        hip_y = None
+        for pose_result in poses:
+            hip_y = self._get_hip_y(pose_result)
+            if hip_y is not None:
+                break
+
+        # ── Step 3: region box ──────────────────────────────────────────
+        if hip_y is None:
+            # fallback proportional split within person box
+            split_y = py1 + int((py2 - py1) * 0.5)
+        else:
+            split_y = hip_y
+
+        region_box: tuple[int, int, int, int] = {
+            "upper": (px1, py1, px2, split_y),
+            "lower": (px1, split_y, px2, py2),
+            "full":  (px1, py1, px2, py2),
+        }[region]
+
+        # ── Step 4: pad & crop ──────────────────────────────────────────
+        rx1, ry1, rx2, ry2 = region_box
+        pad_x = int((rx2 - rx1) * CROP_PAD_FRACTION)
+        pad_y = int((ry2 - ry1) * CROP_PAD_FRACTION)
+        padded_box = (
+            max(0, rx1 - pad_x),
+            max(0, ry1 - pad_y),
+            min(w, rx2 + pad_x),
+            min(h, ry2 + pad_y),
+        )
+
+        return img_rgb.crop(padded_box), padded_box, best_conf

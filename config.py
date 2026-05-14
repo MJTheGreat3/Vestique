@@ -10,6 +10,7 @@ PINECONE_INDEX     = os.getenv("PINECONE_INDEX_NAME", "vestique-fashion")
 
 # ── Model paths ───────────────────────────────────────────────────────────────
 YOLO_MODEL_PATH    = os.getenv("YOLO_MODEL_PATH", "models/yolo11s.pt")
+YOLO_POSE_MODEL    = os.getenv("YOLO_POSE_MODEL", "yolo11s-pose.pt")
 YOLO_HF_REPO       = os.getenv("YOLO_HF_REPO", "")
 
 CLIP_MODEL_PATH    = os.getenv("CLIP_MODEL_PATH", "")
@@ -27,6 +28,7 @@ BLIP_MAX_TOKENS    = 50
 # ── Detection ─────────────────────────────────────────────────────────────────
 YOLO_CONF_THRESHOLD = 0.25
 CROP_PAD_FRACTION   = 0.05
+HIP_CONF_THRESHOLD  = 0.3
 
 
 # ── Weight downloaders ────────────────────────────────────────────────────────

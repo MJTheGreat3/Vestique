@@ -2,3 +2,4 @@ venv
 .env
 __pycache__/
 clip.pt
+yolo11s-pose.pt
