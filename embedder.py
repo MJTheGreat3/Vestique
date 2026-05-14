@@ -2,13 +2,9 @@ from __future__ import annotations
 import numpy as np
 import torch
 from PIL import Image
-from transformers import CLIPModel, CLIPProcessor
 
-from config import (
-    CLIP_MODEL_NAME,
-    CLIP_MODEL_PATH,
-    ensure_clip_weights,
-)
+import clip
+
 from utils import normalize_embedding
 
 
@@ -22,55 +18,30 @@ class QueryEncoder:
         device_str = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = torch.device(device_str)
 
-        # Download clip.pt from HF if missing
-        ensure_clip_weights()
+        print("Loading CLIP model...")
+        self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
 
-        print("Loading base CLIP model...")
-        self.model = CLIPModel.from_pretrained(CLIP_MODEL_NAME)
-
-        print(f"Loading finetuned weights from: {CLIP_MODEL_PATH}")
-
-        ckpt = torch.load(
-            CLIP_MODEL_PATH,
-            map_location=self.device
-        )
-
-        state_dict = (
-            ckpt["model_state_dict"]
-            if "model_state_dict" in ckpt
-            else ckpt
-        )
-
+        ckpt_path = "clip.pt"
+        print(f"Loading fine-tuned weights from: {ckpt_path}")
         try:
+            ckpt = torch.load(ckpt_path, map_location=self.device)
+            state_dict = (
+                ckpt["model_state_dict"]
+                if isinstance(ckpt, dict) and "model_state_dict" in ckpt
+                else ckpt
+            )
             self.model.load_state_dict(state_dict)
-            print("Finetuned CLIP weights loaded successfully.")
+            print("Fine-tuned weights loaded successfully.")
         except RuntimeError as e:
-            print("Failed loading finetuned weights:")
+            print("Failed to load fine-tuned weights:")
             print(e)
             print("Using base CLIP weights instead.")
-
-        self.model = self.model.to(self.device).eval()
-
-        self.processor = CLIPProcessor.from_pretrained(
-            CLIP_MODEL_NAME
-        )
 
     @torch.no_grad()
     def encode(self, image: Image.Image) -> np.ndarray:
         """Returns shape (512,), float32, L2-normalised."""
-
-        inputs = self.processor(
-            images=image,
-            return_tensors="pt"
-        ).to(self.device)
-
-        features = self.model.get_image_features(**inputs)
-
-        if hasattr(features, "pooler_output") and features.pooler_output is not None:
-            features = features.pooler_output
-        elif hasattr(features, "last_hidden_state"):
-            features = features.last_hidden_state[:, 0, :]
-
+        image_input = self.preprocess(image).unsqueeze(0).to(self.device)
+        features = self.model.encode_image(image_input)
         return normalize_embedding(
             features.cpu().detach().numpy().flatten()
         ).astype(np.float32)

@@ -5,6 +5,7 @@ ultralytics>=8.2.0
 torch>=2.2.0
 torchvision>=0.17.0
 transformers>=4.40.0
+git+https://github.com/openai/CLIP.git
 huggingface_hub>=0.22.0
 Pillow>=10.0.0
 pinecone>=3.2.0
