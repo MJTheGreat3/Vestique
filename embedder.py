@@ -21,7 +21,7 @@ class QueryEncoder:
         print("Loading CLIP model...")
         self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
 
-        ckpt_path = "clip.pt"
+        ckpt_path = "models/clip.pt"
         print(f"Loading fine-tuned weights from: {ckpt_path}")
         try:
             ckpt = torch.load(ckpt_path, map_location=self.device)

@@ -1,4 +1,4 @@
 venv
 .env
 __pycache__/
-clip.pt
+models/clip.pt
