@@ -200,21 +200,24 @@ Each retrieved product displays:
 ```bash
 Vestique/
 │
-├── app/                        # Streamlit application
-├── models/                     # YOLO, CLIP, BLIP utilities
-├── retrieval/                  # FAISS & Pinecone retrieval logic
-├── training/                   # Fine-tuning scripts
-├── preprocessing/              # Dataset preprocessing
-├── evaluation/                 # Metric computation
-├── indexing/                   # Embedding generation & indexing
-├── utils/                      # Helper utilities
-├── assets/                     # Demo assets/images
-├── requirements.txt
+├── ablation_study/         # Evaluation scripts and ablation experiments
+├── demo/                   # Demo assets and retrieval examples
+├── models/                 # Model utilities and checkpoints
+│
+├── app.py                  # Streamlit application entry point
+├── config.py               # Global configuration settings
+├── detector.py             # YOLO-based garment localization pipeline
+├── embedder.py             # CLIP + BLIP embedding generation
+├── reranker.py             # BLIP2 semantic reranking module
+├── search.py               # Retrieval and ANN search pipeline
+├── utils.py                # Helper utility functions
+│
+├── scripts/                # Training/indexing/helper scripts
+├── requirements.txt        # Python dependencies
+├── packages.txt            # System-level dependencies
 └── README.md
 ```
-
 ---
-
 # Installation
 
 ## Clone Repository
