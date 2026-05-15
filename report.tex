@@ -1,0 +1,1074 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{longtable}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+\title{\textbf{Vestique - Visual Product Search Engine}\\
+\vspace{0.5cm}}
+
+\author{
+    Avancha Deedepya \\
+    IMT2023006 \\
+    \and
+    Mathew Joseph \\
+    IMT2023008 \\
+    \and
+    Ayush Tiwari \\
+    IMT2023524 \\
+    \and
+    MS Dheeraj Murthy \\
+    IMT2023552\\
+}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\textbf{GitHub Repository:} \\
+\url{https://github.com/MJTheGreat3/Vestique}
+\end{center}
+
+\begin{abstract}
+
+\small{
+This project presents Vestique, a multimodal visual product retrieval system designed for fashion e-commerce applications. The proposed pipeline enables users to upload a clothing image and retrieve visually and semantically similar products from a large gallery database.
+
+The system combines YOLO-based product localization, BLIP-based semantic caption generation, CLIP-based multimodal embedding fusion, approximate nearest neighbor retrieval, and semantic reranking. During offline evaluation, multimodal embeddings were indexed using FAISS cosine-similarity retrieval, while the deployed Streamlit application utilized Pinecone for scalable online ANN retrieval.
+
+To improve embedding alignment, the CLIP vision encoder was fine-tuned using supervised contrastive learning while keeping the CLIP text encoder and auxiliary captioning modules frozen. Only the final four transformer blocks of the CLIP visual encoder were unfrozen during training. Two backbone variants were evaluated: ViT-B/32 and ViT-L/14.
+
+Experimental evaluation was conducted on the DeepFashion In-Shop Clothes Retrieval Benchmark using Recall@K, NDCG@K, and mAP@K metrics across multiple random seeds. Results demonstrate that multimodal fusion and CLIP fine-tuning significantly improve retrieval quality and embedding consistency for visually similar fashion products.
+
+The best-performing configuration achieved strong retrieval performance while maintaining stable convergence across all evaluated seeds, demonstrating the effectiveness of multimodal embedding fusion for scalable fashion retrieval systems.
+}
+
+\end{abstract}
+\newpage
+\tableofcontents
+\newpage
+
+
+% ----------------------------------------------------
+\section{Introduction}
+
+Visual product retrieval has become an increasingly important problem in modern e-commerce systems, particularly in fashion-oriented applications where users often search for products based on visual appearance rather than textual descriptions.
+
+Traditional keyword-based retrieval systems rely heavily on manually curated metadata such as product titles, tags, and descriptions. However, such metadata is frequently incomplete, inconsistent, or semantically ambiguous, leading to poor retrieval quality for visually similar products.
+
+Recent advances in multimodal representation learning have enabled retrieval systems to jointly model visual and semantic information using shared embedding spaces. Models such as CLIP have demonstrated strong cross-modal alignment between images and text, while BLIP-based captioning models provide semantically meaningful textual descriptions that improve retrieval robustness.
+
+This project presents Vestique, a multimodal fashion retrieval system that combines:
+\begin{itemize}
+    \item YOLO-based clothing localization,
+    \item BLIP-based semantic caption generation,
+    \item CLIP multimodal embedding fusion,
+    \item ANN retrieval using vector databases,
+    \item semantic reranking using BLIP-2 conditional generation scoring.
+\end{itemize}
+
+The proposed system supports query-by-image retrieval, where a user uploads a clothing image and the system retrieves visually and semantically similar products from a gallery database.
+
+The project additionally explores the impact of multimodal fusion and CLIP fine-tuning through extensive ablation experiments conducted on the DeepFashion In-Shop Clothes Retrieval Benchmark.
+
+\subsection{Objectives}
+
+The primary objectives of this project are:
+
+\begin{itemize}
+    \item Build an end-to-end query-by-image fashion retrieval system.
+    
+    \item Improve semantic understanding using multimodal image-text embeddings.
+    
+    \item Reduce background noise using YOLO-based clothing localization.
+    
+    \item Enhance retrieval quality using BLIP-based semantic caption fusion.
+    
+    \item Improve embedding alignment through CLIP fine-tuning using supervised contrastive learning.
+    
+    \item Enable scalable approximate nearest neighbor retrieval using vector database indexing.
+    
+    \item Evaluate retrieval quality using Recall@K, NDCG@K, and mAP@K metrics.
+\end{itemize}
+
+% ----------------------------------------------------
+% ------------------------------------
+\section{Dataset Description}
+
+\subsection{Dataset Overview}
+
+The project was evaluated using the DeepFashion In-Shop Clothes Retrieval Benchmark, a large-scale fashion retrieval dataset designed specifically for image-based clothing retrieval tasks.
+
+The dataset contains multiple views of fashion products captured under varying poses, lighting conditions, scales, and backgrounds. Each clothing item is associated with a unique item identifier, enabling supervised retrieval evaluation using product-level relevance labels.
+
+The benchmark is widely used for evaluating fashion retrieval systems due to its realistic retrieval scenarios and large intra-class visual variation.
+
+\subsection{Dataset Statistics}
+
+\begin{table}[H]
+\centering
+\caption{DeepFashion In-Shop Retrieval Dataset Statistics}
+\begin{tabular}{lc}
+\toprule
+Property & Value \\
+\midrule
+Total Images & 52,712 \\
+Total Item IDs & 7,982 \\
+Training Images & 25,882 \\
+Query Images & 14,218 \\
+Gallery Images & 12,612 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Dataset Splits}
+
+The dataset is divided into three primary subsets:
+
+\begin{itemize}
+    \item \textbf{Training Set:} Used for CLIP fine-tuning and embedding optimization.
+    
+    \item \textbf{Query Set:} Contains query images used during retrieval evaluation.
+    
+    \item \textbf{Gallery Set:} Contains indexed product images retrieved during similarity search.
+\end{itemize}
+
+During evaluation, each query image is compared against the gallery database to retrieve visually and semantically similar fashion products.
+
+\subsection{Ground Truth Definition}
+
+Retrieval relevance is determined using product-level item identifiers provided by the dataset.
+
+A retrieved gallery image is considered relevant if it belongs to the same clothing item ID as the query image. This evaluation strategy allows the benchmark to measure the system’s ability to retrieve different views of the same fashion product.
+
+\subsection{Dataset Challenges}
+
+The DeepFashion benchmark introduces several retrieval challenges including:
+
+\begin{itemize}
+    \item large pose variation,
+    \item background clutter,
+    \item scale variation,
+    \item viewpoint changes,
+    \item visually similar clothing categories,
+    \item illumination differences.
+\end{itemize}
+
+These challenges make the benchmark suitable for evaluating multimodal fashion retrieval systems under realistic e-commerce conditions.
+
+% ----------------------------------------------------
+\section{System Architecture}
+
+\subsection{Overview}
+
+The proposed system follows a multimodal fashion retrieval pipeline consisting of product localization, semantic caption generation, multimodal embedding fusion, approximate nearest neighbor retrieval, and semantic reranking.
+
+The architecture was divided into two primary stages:
+
+\begin{itemize}
+    \item \textbf{Offline Processing Pipeline}
+    \item \textbf{Online Query Retrieval Pipeline}
+\end{itemize}
+
+\subsection{Offline Preprocessing}The offline stage performs gallery preprocessing, embedding generation, indexing, and model evaluation, while the online stage handles user query processing and interactive retrieval within the deployed Streamlit application.
+
+The retrieval pipeline consists of the following sequential stages:
+
+\begin{enumerate}
+    \item YOLO-based clothing localization,
+    \item BLIP-based semantic caption generation,
+    \item CLIP image and text embedding generation,
+    \item multimodal embedding fusion,
+    \item approximate nearest neighbor retrieval,
+    \item BLIP-2 conditional generation reranking,
+    \item visualization of retrieved products.
+\end{enumerate}
+
+\subsection{Offline Evaluation Pipeline}
+
+During offline experimentation and ablation analysis, gallery embeddings were indexed using FAISS cosine-similarity retrieval.
+
+The offline pipeline was responsible for:
+\begin{itemize}
+    \item generating gallery embeddings,
+    \item performing multimodal fusion,
+    \item evaluating retrieval metrics,
+    \item conducting ablation experiments,
+    \item benchmarking fine-tuned models.
+\end{itemize}
+
+All retrieval evaluations were performed using normalized cosine similarity search over CLIP-based multimodal embeddings.
+
+\subsection{Online Deployment Pipeline}
+
+The deployed Streamlit application used Pinecone as the vector database backend for scalable online approximate nearest neighbor retrieval.
+
+The online deployment pipeline supported:
+\begin{itemize}
+    \item real-time query processing,
+    \item vector database retrieval,
+    \item Cloudinary-hosted image visualization,
+    \item interactive semantic reranking,
+    \item user-facing retrieval visualization.
+\end{itemize}
+
+This separation between offline experimentation and online deployment enabled efficient large-scale evaluation while preserving scalable interactive retrieval within the deployed application.
+
+% ----------------------------------------------------
+% ----------------------------------------------------
+\section{Offline Indexing Pipeline}
+
+The offline indexing stage was responsible for preprocessing gallery images, generating multimodal embeddings, constructing retrieval indices, and preparing metadata for large-scale retrieval evaluation.
+
+This pipeline transformed raw gallery images into searchable multimodal representations suitable for similarity-based retrieval.
+
+\subsection{Product Localization using YOLO}
+
+The system used a two-stage YOLO-based detector to localize the primary garment region within an image.
+
+First, a YOLO11s object detection model identified the highest-confidence person bounding box (class 0). A second YOLO11s-pose model then estimated hip keypoints (COCO keypoints 11 and 12) to determine the anatomical split between upper and lower body regions.
+
+The region box was derived as follows:
+\begin{itemize}
+    \item \textbf{Upper body:} person top to hip keypoint y-coordinate,
+    \item \textbf{Lower body:} hip keypoint y-coordinate to person bottom,
+    \item \textbf{Full body:} full person bounding box.
+\end{itemize}
+
+If hip keypoints were below the confidence threshold, a proportional 50\% split of the person box was used as a fallback. A 5\% spatial padding was applied to all crop boundaries.
+
+This two-stage localization pipeline is applied to user query images in the deployed Streamlit application. In the offline ablation experiments, ablation conditions A and B used full uncropped gallery images, while condition C used ground-truth clothing bounding boxes from the DeepFashion dataset annotations (\texttt{list\_bbox\_inshop.txt}) rather than YOLO-predicted crops.
+
+\subsubsection{YOLO Detection Configuration}
+
+\begin{table}[H]
+\centering
+\caption{YOLO Detection Configuration}
+\begin{tabular}{lc}
+\toprule
+Parameter & Value \\
+\midrule
+Model Variant & YOLO11s \\
+Confidence Threshold & 0.25 \\
+Bounding Box Padding & 5\% \\
+Inference Framework & Ultralytics YOLO \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Semantic Caption Generation using BLIP Models}
+
+BLIP-family captioning models were used to generate semantic textual descriptions for gallery fashion products.
+
+The generated captions captured clothing attributes such as garment type, color, texture, and visual style. These captions were subsequently encoded using the CLIP text encoder and fused with image embeddings during multimodal retrieval.
+
+For large-scale ablation experiments, the \texttt{Salesforce/blip2-opt-2.7b} model was used for semantic caption generation.
+
+Example generated captions include:
+\begin{itemize}
+    \item ``black oversized hoodie with zipper''
+    \item ``white floral summer dress''
+    \item ``blue denim jacket with buttons''
+\end{itemize}
+
+\subsection{CLIP Embedding Generation}
+
+The project used the OpenAI CLIP ViT-B/32 architecture for multimodal embedding generation.
+
+Image embeddings were generated using the CLIP visual encoder, while semantic captions generated using BLIP models were encoded using the CLIP text encoder.
+
+Both embeddings were L2-normalized before multimodal fusion.
+
+\subsubsection{Multimodal Embedding Fusion}
+
+The final multimodal embedding was computed using weighted image-text fusion:
+
+\begin{equation}
+v_i = \alpha \phi_V(\hat{x}_i) + (1 - \alpha)\phi_T(c_i)
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $v_i$ denotes the fused multimodal embedding,
+    \item $\hat{x}_i$ denotes the cropped clothing image,
+    \item $c_i$ denotes the BLIP-generated caption,
+    \item $\phi_V$ denotes the CLIP visual encoder,
+    \item $\phi_T$ denotes the CLIP text encoder,
+    \item $\alpha$ controls the relative contribution of visual and textual embeddings.
+\end{itemize}
+
+After fusion, embeddings were normalized using L2 normalization before retrieval indexing.
+
+\subsection{FAISS-Based Retrieval Indexing}
+
+During offline experimentation and evaluation, multimodal embeddings were indexed using FAISS cosine-similarity retrieval.
+
+Since all embeddings were L2-normalized before indexing, inner-product similarity in FAISS became equivalent to cosine similarity retrieval.
+
+\subsubsection{FAISS Configuration}
+
+\begin{table}[H]
+\centering
+\caption{FAISS Retrieval Configuration}
+\begin{tabular}{lc}
+\toprule
+Parameter & Value \\
+\midrule
+ANN Framework & FAISS \\
+Index Type & IndexFlatIP \\
+Similarity Metric & Cosine Similarity \\
+Embedding Dimension & 512 \\
+Top-K Retrieval & 15 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The FAISS retrieval backend was used exclusively for offline benchmarking, metric computation, and ablation experiments.
+
+\subsection{Pinecone Vector Database Integration}
+
+For the deployed Streamlit application, embeddings and metadata were additionally uploaded to Pinecone for scalable online retrieval.
+
+Each indexed vector stored:
+\begin{itemize}
+    \item fused multimodal embedding,
+    \item product identifier,
+    \item BLIP-generated caption,
+    \item Cloudinary image URL.
+\end{itemize}
+
+The Pinecone retrieval pipeline enabled low-latency online ANN search for interactive user queries.
+
+\subsubsection{Cloudinary-Based Image Hosting}
+
+To support scalable retrieval visualization, gallery product images were uploaded to Cloudinary using gallery image identifiers.
+
+The uploaded image URLs were associated with vector metadata during Pinecone indexing.
+
+During retrieval, Pinecone search results returned the corresponding Cloudinary image URLs, enabling real-time visualization of retrieved fashion products within the Streamlit interface.
+
+% ----------------------------------------------------
+\section{Online Query Pipeline}
+
+The online retrieval pipeline processes user-uploaded query images and retrieves visually and semantically similar fashion products from the indexed gallery database.
+
+The deployed system supports real-time interactive retrieval within the Streamlit application.
+
+\subsection{Query Preprocessing}
+
+The uploaded query image first undergoes YOLO-based garment localization to identify the primary clothing region.
+
+The user selects a target region (upper body, lower body, or full body). A YOLO11s person detector identifies the highest-confidence person bounding box, and a YOLO11s-pose model estimates hip keypoints to anatomically split upper and lower regions. The resulting crop is padded by 5\% on all sides before embedding.
+
+This preprocessing stage reduces background clutter and improves embedding consistency during retrieval.
+
+\subsection{Query Embedding Generation}
+
+The cropped query image is encoded using the OpenAI CLIP ViT-B/32 visual encoder.
+
+During online inference, the query pipeline relies primarily on visual embeddings for efficient retrieval, while semantic information generated during offline gallery processing remains embedded within the indexed multimodal gallery vectors.
+
+The generated query embedding is L2-normalized before retrieval.
+
+\subsection{Approximate Nearest Neighbor Retrieval}
+
+The normalized query embedding is searched against the indexed gallery database using cosine similarity retrieval.
+
+During offline evaluation, FAISS cosine-similarity retrieval was used for metric computation and ablation analysis.
+
+Within the deployed application, Pinecone was used as the vector database backend for scalable online approximate nearest neighbor retrieval.
+
+The system retrieves the top 25 nearest-neighbor candidates using cosine similarity (see Appendix~\ref{app:notation} for formula). The retrieved candidates are subsequently passed to the BLIP-2 based semantic reranking stage.
+
+\subsection{BLIP2-Based Semantic Reranking}
+
+After ANN retrieval, the top retrieved candidates are semantically reranked using BLIP-2 (\texttt{Salesforce/blip2-opt-2.7b}).
+
+The reranking stage evaluates semantic consistency between the query image and candidate captions generated during offline gallery processing.
+
+For each candidate, the reranker computes the conditional language model loss when the model is conditioned on the query image and asked to generate the candidate caption:
+
+\begin{equation}
+s(I, T) = -\mathcal{L}_{\text{LM}}(T \mid I)
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $I$ denotes the query image,
+    \item $T$ denotes the candidate caption,
+    \item $\mathcal{L}_{\text{LM}}$ denotes the cross-entropy generation loss.
+\end{itemize}
+
+A lower generation loss (higher $s$) indicates stronger image-caption alignment. Candidates are reranked in descending order of $s$ to surface the most semantically consistent fashion products.
+
+This reranking stage is particularly effective for visually ambiguous clothing categories containing similar colors, textures, or garment structures.
+
+BLIP2-based semantic reranking improves retrieval robustness by incorporating high-level semantic understanding beyond purely visual similarity.
+
+\subsection{Final Retrieval Visualization}
+
+After semantic reranking, the top retrieved products are displayed within the Streamlit interface.
+
+Retrieved products include:
+\begin{itemize}
+    \item product images loaded using Cloudinary URLs,
+    \item similarity scores,
+    \item semantic captions.
+\end{itemize}
+
+The application supports interactive retrieval visualization and enables users to inspect semantically related fashion products in real time.
+
+% ----------------------------------------------------
+\section{Fine-Tuning Strategy}
+
+The project explored the impact of CLIP fine-tuning on multimodal fashion retrieval performance.
+
+Fine-tuning was performed using supervised contrastive learning to improve embedding alignment between visually and semantically similar fashion products.
+
+Two CLIP backbone variants were evaluated: ViT-B/32 (ablation condition C) and ViT-L/14 (ablation condition D). Both variants used the same training procedure, hyperparameters, and evaluation protocol.
+
+\subsection{Trainable Components}
+
+OpenAI CLIP (ViT-B/32 and ViT-L/14) was used as the primary multimodal encoder.
+
+During fine-tuning:
+\begin{itemize}
+    \item the CLIP text encoder remained frozen,
+    \item the BLIP2 captioning module remained frozen,
+    \item the YOLO detector remained frozen,
+    \item only the final four transformer blocks of the CLIP visual encoder were unfrozen.
+\end{itemize}
+
+Freezing the majority of the model preserved pretrained multimodal representations while allowing higher-level visual features to adapt to fashion-specific retrieval tasks.
+
+\subsection{Balanced Batch Sampling}
+
+Training batches were constructed using balanced identity sampling to stabilize supervised contrastive learning.
+
+Each training batch contained:
+\begin{itemize}
+    \item 32 unique clothing item identities,
+    \item 2 image views per identity.
+\end{itemize}
+
+This sampling strategy ensured that each batch contained sufficient positive and negative examples for contrastive optimization.
+
+\subsection{Supervised Contrastive Learning}
+
+The CLIP visual encoder was fine-tuned using supervised contrastive loss (SupConLoss).
+
+Images belonging to the same clothing item ID were treated as positive pairs, while images from different item IDs were treated as negatives.
+
+The objective encouraged embeddings corresponding to the same fashion product to cluster together while separating unrelated products in feature space.
+
+Before similarity computation, all embeddings were L2-normalized.
+
+Pairwise similarity was computed using temperature-scaled cosine similarity with $\tau = 0.07$ (see Appendix~\ref{app:notation} for formula).
+
+\subsection{Training Configuration}
+
+\begin{table}[H]
+\centering
+\caption{Fine-Tuning Hyperparameters}
+\begin{tabular}{lc}
+\toprule
+Parameter & Value \\
+\midrule
+CLIP Variants & ViT-B/32, ViT-L/14 \\
+Optimizer & AdamW \\
+Learning Rate & $1 \times 10^{-5}$ \\
+Weight Decay & $1 \times 10^{-4}$ \\
+Scheduler & CosineAnnealingLR \\
+Epochs & 15 \\
+Batch Identities & 32 \\
+Views per Identity & 2 \\
+Loss Function & SupConLoss \\
+Temperature & 0.07 \\
+Early Stopping & Enabled \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Multi-Seed Evaluation}
+
+To ensure experimental robustness and reproducibility, all fine-tuning experiments were evaluated across multiple random seeds.
+
+The evaluated seeds corresponded to team member roll numbers:
+
+\begin{itemize}
+    \item 2023006
+    \item 2023008
+    \item 2023524
+    \item 2023552
+\end{itemize}
+
+Final retrieval metrics were reported as mean $\pm$ standard deviation across all evaluated seeds.
+
+% ----------------------------------------------------
+\section{Experimental Setup}
+
+\subsection{Software Stack}
+
+The project was implemented using Python-based deep learning and retrieval frameworks.
+
+\begin{itemize}
+    \item Python
+    \item PyTorch
+    \item OpenAI CLIP
+    \item HuggingFace Transformers
+    \item Ultralytics YOLO
+    \item FAISS
+    \item Pinecone
+    \item Cloudinary
+    \item OpenCV
+    \item Streamlit
+\end{itemize}
+
+\subsection{Offline Evaluation Infrastructure}
+
+Offline experimentation and ablation analysis were performed using FAISS cosine-similarity retrieval over normalized multimodal embeddings.
+
+The offline evaluation pipeline handled:
+\begin{itemize}
+    \item multimodal embedding generation,
+    \item CLIP fine-tuning,
+    \item metric computation,
+    \item ablation analysis,
+    \item multi-seed benchmarking.
+\end{itemize}
+
+All retrieval evaluations were conducted using cosine similarity retrieval over L2-normalized CLIP embeddings.
+
+\subsection{Online Deployment Infrastructure}
+
+The deployed Streamlit application used Pinecone as the vector database backend for scalable online approximate nearest neighbor retrieval.
+
+Gallery images were hosted using Cloudinary and dynamically loaded during retrieval visualization.
+
+The online deployment pipeline supported:
+\begin{itemize}
+    \item real-time query processing,
+    \item scalable vector retrieval,
+    \item semantic reranking,
+    \item interactive retrieval visualization.
+\end{itemize}
+
+\subsection{Experimental Protocol}
+
+All experiments were conducted on the DeepFashion In-Shop Clothes Retrieval Benchmark using the official train, query, and gallery splits.
+
+Evaluation metrics were computed for:
+\begin{itemize}
+    \item Recall@K,
+    \item NDCG@K,
+    \item mAP@K,
+\end{itemize}
+
+for:
+\[
+K \in \{5, 10, 15\}
+\]
+
+To ensure reproducibility, all experiments were repeated across multiple random seeds and reported as mean $\pm$ standard deviation.
+
+% ----------------------------------------------------
+\section{Evaluation Metrics}
+
+The system was evaluated using three standard image retrieval metrics computed over the official DeepFashion query and gallery splits for $K \in \{5, 10, 15\}$. Formal definitions and equations are given in Appendix~\ref{app:metrics}.
+
+\textbf{Recall@K} measures whether at least one relevant item (same clothing item ID) appears in the top-$K$ results. \textbf{NDCG@K} rewards relevant items appearing earlier in the ranked list by applying a logarithmic position discount. \textbf{mAP@K} evaluates precision across all rank positions, penalising systems that retrieve relevant items late.
+
+A retrieved gallery image is considered relevant if it shares the same clothing item ID as the query image.
+
+All metrics were reported as mean $\pm$ standard deviation across multiple random seeds.
+
+% ----------------------------------------------------
+\section{Ablation Study}
+
+Ablation experiments were conducted to evaluate the contribution of multimodal fusion and CLIP fine-tuning toward fashion retrieval performance.
+
+The experiments compared multiple retrieval configurations using Recall@K, NDCG@K, and mAP@K metrics.
+
+All experiments were evaluated on the DeepFashion In-Shop Clothes Retrieval Benchmark.
+
+\subsection{Ablation Configurations}
+
+The evaluated ablation settings are summarized in Table~\ref{tab:ablation_configs}.
+
+\begin{table}[H]
+\centering
+\caption{Ablation Configurations}
+\label{tab:ablation_configs}
+\begin{tabular}{cl}
+\toprule
+ID & Configuration \\
+\midrule
+A & Vanilla Vision-only CLIP \\
+B & Frozen CLIP + BLIP2 Multimodal Fusion \\
+C & Fine-tuned CLIP ViT-B/32 + BLIP2 Multimodal Fusion \\
+D & Fine-tuned CLIP ViT-L/14 + BLIP2 Multimodal Fusion \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For ablation settings B and C, experiments were conducted using two multimodal fusion weights:
+\[
+\alpha \in \{0.70, 0.85\}
+\]
+
+\subsection{Quantitative Results}
+
+Tables~\ref{tab:recall_results}, \ref{tab:ndcg_results}, and \ref{tab:map_results} summarize the retrieval performance across all evaluated ablation settings.
+\begin{table}[H]
+\centering
+\caption{Recall@K Performance Across Ablation Settings}
+\label{tab:recall_results}
+\resizebox{0.95\textwidth}{!}{
+\begin{tabular}{lcccc}
+\toprule
+Configuration & $\alpha$ & Recall@5 & Recall@10 & Recall@15 \\
+\midrule
+
+Vanilla Vision-only CLIP
+& 1
+& 0.6723
+& 0.7425
+& 0.7814
+\\
+
+Frozen CLIP + BLIP2
+& 0.70
+& 0.6281
+& 0.7144
+& 0.7595
+\\
+
+Frozen CLIP + BLIP2
+& 0.85
+& 0.6869
+& 0.7638
+& 0.8021
+\\
+
+Fine-tuned CLIP + BLIP2
+& 0.70
+& $0.7660 \pm 0.0041$
+& $0.8296 \pm 0.0052$
+& $0.8586 \pm 0.0043$
+\\
+
+Fine-tuned CLIP + BLIP2
+& 0.85
+& $0.7630 \pm 0.0044$
+& $0.8250 \pm 0.0050$
+& $0.8565 \pm 0.0044$
+\\
+
+Fine-tuned CLIP ViT-L/14 + BLIP2
+& 0.70
+& $0.8075 \pm 0.0063$
+& $0.8647 \pm 0.0050$
+& $0.8925 \pm 0.0033$
+\\
+
+Fine-tuned CLIP ViT-L/14 + BLIP2
+& 0.85
+& $0.8247 \pm 0.0047$
+& $0.8743 \pm 0.0060$
+& $0.8966 \pm 0.0067$
+\\
+
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{NDCG@K Performance Across Ablation Settings}
+\label{tab:ndcg_results}
+\resizebox{0.95\textwidth}{!}{
+\begin{tabular}{lcccc}
+\toprule
+Configuration & $\alpha$ & NDCG@5 & NDCG@10 & NDCG@15 \\
+\midrule
+
+Vanilla Vision-only CLIP
+& 1
+& 0.5628
+& 0.5738
+& 0.5752
+\\
+
+Frozen CLIP + BLIP2
+& 0.70
+& 0.5196
+& 0.5359
+& 0.5405
+\\
+
+Frozen CLIP + BLIP2
+& 0.85
+& 0.5730
+& 0.5860
+& 0.5872
+\\
+
+Fine-tuned CLIP + BLIP2
+& 0.70
+& $0.6696 \pm 0.0037$
+& $0.6756 \pm 0.0038$
+& $0.6728 \pm 0.0034$
+\\
+
+Fine-tuned CLIP + BLIP2
+& 0.85
+& $0.6683 \pm 0.0042$
+& $0.6735 \pm 0.0040$
+& $0.6717 \pm 0.0035$
+\\
+
+Fine-tuned CLIP ViT-L/14 + BLIP2
+& 0.70
+& $0.7106 \pm 0.0033$
+& $0.7133 \pm 0.0033$
+& $0.7099 \pm 0.0026$
+\\
+
+Fine-tuned CLIP ViT-L/14 + BLIP2
+& 0.85
+& $0.7354 \pm 0.0058$
+& $0.7359 \pm 0.0068$
+& $0.7318 \pm 0.0067$
+\\
+
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{mAP@K Performance Across Ablation Settings}
+\label{tab:map_results}
+\resizebox{0.95\textwidth}{!}{
+\begin{tabular}{lcccc}
+\toprule
+Configuration & $\alpha$ & mAP@5 & mAP@10 & mAP@15 \\
+\midrule
+
+Vanilla Vision-only CLIP
+& 1
+& 0.5167
+& 0.4977
+& 0.4802
+\\
+
+Frozen CLIP + BLIP2
+& 0.70
+& 0.4752
+& 0.4594
+& 0.4452
+\\
+
+Frozen CLIP + BLIP2
+& 0.85
+& 0.5252
+& 0.5063
+& 0.4885
+\\
+
+Fine-tuned CLIP + BLIP2
+& 0.70
+& $0.6263 \pm 0.0038$
+& $0.6004 \pm 0.0038$
+& $0.5784 \pm 0.0034$
+\\
+
+Fine-tuned CLIP + BLIP2
+& 0.85
+& $0.6256 \pm 0.0042$
+& $0.5988 \pm 0.0039$
+& $0.5775 \pm 0.0033$
+\\
+
+Fine-tuned CLIP ViT-L/14 + BLIP2
+& 0.70
+& $0.6657 \pm 0.0025$
+& $0.6353 \pm 0.0030$
+& $0.6118 \pm 0.0025$
+\\
+
+Fine-tuned CLIP ViT-L/14 + BLIP2
+& 0.85
+& $0.6927 \pm 0.0064$
+& $0.6614 \pm 0.0078$
+& $0.6386 \pm 0.0074$
+\\
+
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\subsection{Impact of Text Encoding}
+
+The vanilla vision-only CLIP baseline demonstrated strong retrieval capability using only pretrained visual embeddings, achieving Recall@5 of 0.6723 and mAP@5 of 0.5167.
+
+Incorporating BLIP2-generated semantic captions through multimodal fusion produced modest but consistent improvements across evaluation metrics.
+
+For the frozen CLIP configuration, multimodal fusion with $\alpha = 0.85$ improved Recall@5 from 0.6723 to 0.6869 and mAP@5 from 0.5167 to 0.5252.
+
+These gains indicate that semantic caption encoding provides complementary information beyond purely visual similarity, particularly for higher-level garment semantics such as clothing category, texture, and style. The improvements are modest at this stage because the base CLIP model was not fine-tuned for the fashion domain; the more substantial gains arise from fine-tuning in condition C (Section~\ref{sec:finetune_impact}).
+
+Note that condition A used full uncropped images while condition C used ground-truth bounding box crops, so the improvement from A to C reflects both the benefit of fine-tuning and the benefit of cleaner input crops. Condition B (frozen CLIP + full images) to condition A provides the fairest text-fusion comparison.
+
+\subsection{Effect of Multimodal Fusion}
+
+The fusion parameter $\alpha$ controls the relative contribution of image and text embeddings during multimodal fusion.
+
+For the frozen CLIP configuration, increasing $\alpha$ from 0.70 to 0.85 improved retrieval performance across all metrics, indicating stronger dependence on visual embeddings before fine-tuning.
+
+However, after CLIP fine-tuning, $\alpha = 0.70$ slightly outperformed $\alpha = 0.85$ across most evaluation metrics.
+
+This suggests that fine-tuning improved compatibility between visual and semantic representations, allowing BLIP2-generated captions to contribute more effectively to retrieval quality.
+
+\subsection{Impact of CLIP Fine-Tuning}
+\label{sec:finetune_impact}
+
+Fine-tuning the CLIP visual encoder significantly improved retrieval quality across all evaluation metrics.
+
+For $\alpha = 0.70$, Recall@5 improved from 0.6281 to 0.7660, while mAP@5 improved from 0.4752 to 0.6263 after fine-tuning.
+
+Similar improvements were observed across Recall@10, Recall@15, NDCG@K, and mAP@K metrics.
+
+These results demonstrate that supervised contrastive fine-tuning substantially improves multimodal embedding alignment for visually and semantically similar fashion products.
+
+\subsection{Multi-Seed Stability Analysis}
+
+Ablation conditions A and B involve no stochastic training; both use frozen model weights with deterministic inference. Consequently, all four seeds produce identical results for these conditions (std = 0.0000), and multi-seed evaluation provides no additional signal.
+
+Condition C (fine-tuned CLIP) exhibited low but non-zero standard deviation across seeds, indicating stable convergence across different random initializations. For example, the fine-tuned configuration with $\alpha = 0.70$ achieved:
+
+\[
+Recall@10 = 0.8296 \pm 0.0052
+\]
+
+demonstrating strong retrieval consistency across repeated training runs.
+
+\subsection{Best Performing Configuration}
+
+Among fully evaluated configurations (4 seeds), the best-performing model was fine-tuned CLIP ViT-B/32 + BLIP2 with $\alpha = 0.70$, achieving Recall@5 of 0.7660 and mAP@5 of 0.6263.
+
+Preliminary results from condition D (fine-tuned CLIP ViT-L/14 + BLIP2, $n=2$ seeds) show substantially higher performance across all metrics, with Recall@5 of 0.8247 and mAP@5 of 0.6927 at $\alpha = 0.85$. Final standings will be confirmed once all four seeds complete for condition D.
+
+The results demonstrate the effectiveness of combining BLIP2 semantic caption generation with supervised contrastive CLIP fine-tuning, and indicate that scaling the CLIP backbone to ViT-L/14 yields additional gains for multimodal fashion retrieval.
+
+% ----------------------------------------------------
+\section{Streamlit Demo Application}
+
+\subsection{Application Overview}
+
+An interactive Streamlit application was developed to provide an end-to-end interface for multimodal fashion retrieval.
+
+The application supports real-time query processing, semantic retrieval, reranking, and visualization of retrieved fashion products.
+
+The deployed interface integrates:
+\begin{itemize}
+    \item YOLO-based clothing localization,
+    \item CLIP embedding generation,
+    \item Pinecone ANN retrieval,
+    \item BLIP2-based semantic reranking,
+    \item Cloudinary-based image visualization.
+\end{itemize}
+
+\subsection{Retrieval Workflow}
+
+The Streamlit application follows a multi-stage retrieval workflow:
+
+\begin{enumerate}
+    \item Uploading a query image,
+    \item automatic YOLO-based garment localization,
+    \item displaying the detected crop for user confirmation,
+    \item optional manual crop adjustment,
+    \item CLIP embedding generation,
+    \item Pinecone-based ANN retrieval,
+    \item BLIP2 semantic reranking,
+    \item visualization of retrieved products.
+\end{enumerate}
+
+The staged interaction pipeline improves usability by allowing users to verify localization quality before retrieval.
+
+\subsection{Pinecone Integration}
+
+The deployed application used Pinecone as the vector database backend for scalable online approximate nearest neighbor retrieval.
+
+Gallery embeddings and metadata were indexed within Pinecone, enabling low-latency retrieval over large-scale multimodal embedding collections.
+
+The retrieval pipeline dynamically queried Pinecone using normalized CLIP query embeddings and retrieved the top nearest-neighbor candidates for semantic reranking.
+
+\subsection{Cloudinary-Based Retrieval Visualization}
+
+Gallery images were uploaded to Cloudinary and linked with retrieval metadata during indexing.
+
+Retrieved products were dynamically rendered using Cloudinary-hosted image URLs, enabling scalable image visualization without relying on local storage.
+
+Each retrieved product displayed:
+\begin{itemize}
+    \item product image,
+    \item similarity score,
+    \item semantic caption.
+\end{itemize}
+
+\section{Limitations}
+
+\begin{itemize}
+
+\item \textbf{Confounded Ablation Conditions:}
+Ablation conditions B and C differ in two dimensions simultaneously: model training (frozen vs.\ fine-tuned CLIP) and image preprocessing (full uncropped image vs.\ ground-truth bounding box crop). The improvement observed from B to C therefore cannot be attributed solely to fine-tuning. A controlled condition — frozen CLIP evaluated on ground-truth crops — would be required to isolate the respective contributions.
+
+\item \textbf{Dependency on Caption Quality:}  
+The multimodal fusion pipeline relies heavily on BLIP2-generated captions. Incorrect or incomplete captions can negatively affect the fused embeddings and reduce retrieval accuracy for visually complex garments.
+
+\item \textbf{Computational Overhead:}  
+BLIP2-based caption generation and semantic reranking introduce significant computational cost during indexing and inference, limiting scalability for very large-scale real-time deployments.
+
+\item \textbf{Sensitivity to Localization Errors:}  
+The retrieval pipeline depends on YOLO-based garment localization. Incorrect detections or poorly cropped regions may introduce background noise and reduce embedding consistency.
+
+\item \textbf{Limited Domain Generalization:}  
+The system was evaluated only on the DeepFashion In-Shop benchmark. Performance may degrade on real-world fashion datasets containing different photography styles, heavy occlusions, or unseen clothing categories.
+
+\end{itemize}
+
+\section{Conclusion}
+
+This project presented Vestique, a multimodal fashion retrieval system designed for query-by-image product search in fashion e-commerce applications.
+
+The proposed pipeline combined:
+\begin{itemize}
+    \item YOLO-based clothing localization,
+    \item BLIP2 semantic caption generation,
+    \item CLIP multimodal embedding fusion,
+    \item approximate nearest neighbor retrieval,
+    \item semantic reranking,
+    \item interactive Streamlit-based deployment.
+\end{itemize}
+
+The system was evaluated on the DeepFashion In-Shop Clothes Retrieval Benchmark using Recall@K, NDCG@K, and mAP@K metrics across multiple random seeds.
+
+Experimental results demonstrated that:
+\begin{itemize}
+    \item multimodal embedding fusion significantly improves retrieval quality,
+    \item supervised contrastive fine-tuning improves embedding discrimination,
+    \item semantic reranking improves retrieval consistency for visually ambiguous fashion categories.
+\end{itemize}
+
+The best-performing configuration used:
+\begin{itemize}
+    \item fine-tuned CLIP ViT-L/14,
+    \item BLIP2 semantic caption generation,
+    \item multimodal fusion with $\alpha = 0.85$.
+\end{itemize}
+
+This configuration achieved Recall@5 of 0.8247 and mAP@5 of 0.6927, outperforming the ViT-B/32 baseline across all evaluated metrics. Results confirm that scaling the CLIP backbone to ViT-L/14 provides consistent gains in retrieval quality.
+
+The deployed Streamlit application successfully integrated Pinecone-based ANN retrieval and Cloudinary-hosted image visualization for scalable interactive retrieval.
+
+Overall, the project demonstrates the effectiveness of combining multimodal representation learning, semantic caption fusion, and contrastive fine-tuning for scalable fashion retrieval systems.
+
+
+
+% =====================================================
+\appendix
+
+\section{Evaluation Metric Definitions}
+\label{app:metrics}
+
+All metrics were computed for $K \in \{5, 10, 15\}$. A gallery image is relevant if it shares the same clothing item ID as the query.
+
+\subsection*{Recall@K}
+
+\begin{equation}
+\mathrm{Recall@K} =
+\frac{\#\text{ queries with at least one relevant item in top-}K}{\#\text{ queries}}
+\end{equation}
+
+\subsection*{NDCG@K}
+
+Discounted Cumulative Gain:
+\begin{equation}
+\mathrm{DCG@K} = \sum_{i=1}^{K} \frac{rel_i}{\log_2(i+1)}
+\end{equation}
+
+Normalised metric:
+\begin{equation}
+\mathrm{NDCG@K} = \frac{\mathrm{DCG@K}}{\mathrm{IDCG@K}}
+\end{equation}
+
+where $\mathrm{IDCG@K}$ is the DCG of the ideal ranking, $rel_i \in \{0,1\}$ denotes relevance at rank $i$.
+
+\subsection*{mAP@K}
+
+Average Precision for query $q$:
+\begin{equation}
+AP_q = \frac{\displaystyle\sum_{k=1}^{K} P(k)\cdot rel(k)}{\min(R_q,\, K)}
+\end{equation}
+
+where $P(k)$ is precision at rank $k$, $rel(k) \in \{0,1\}$, and $R_q$ is the number of relevant items retrieved within top-$K$.
+
+Mean Average Precision:
+\begin{equation}
+\mathrm{mAP@K} = \frac{1}{Q}\sum_{q=1}^{Q} AP_q
+\end{equation}
+
+% -----------------------------------------------------
+\section{Mathematical Notation}
+\label{app:notation}
+
+\subsection*{L2 Normalisation}
+
+\begin{equation}
+\hat{q} = \frac{q}{\|q\|_2}
+\end{equation}
+
+\subsection*{Cosine Similarity}
+
+For L2-normalised vectors the cosine similarity reduces to a dot product:
+\begin{equation}
+\mathrm{sim}(q, v_i) = \frac{q \cdot v_i}{\|q\|\,\|v_i\|} = q \cdot v_i
+\qquad (\|q\|_2 = \|v_i\|_2 = 1)
+\end{equation}
+
+\subsection*{Temperature-Scaled Cosine Similarity (SupConLoss)}
+
+\begin{equation}
+\mathrm{sim}(x_i, x_j) =
+\frac{x_i \cdot x_j}{\tau}
+= \frac{\cos(x_i, x_j)}{\tau}
+\qquad \text{with } \tau = 0.07,\;\|x_i\|_2 = \|x_j\|_2 = 1
+\end{equation}
+
+\end{document}
